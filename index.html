@@ -9,51 +9,70 @@
     { "imports": { "three": "https://unpkg.com/three@0.126.0/build/three.module.js" } }
   </script>
   <style>
-    body { margin: 0; overflow: hidden; }
-    #start-btn {
-      position: absolute; top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      padding: 20px 40px; font-size: 24px;
-      z-index: 20; background: white; border: 2px solid black;
-      cursor: pointer;
-    }
+    body { margin: 0; overflow: hidden; font-family: Arial; }
+    #start-btn { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 20px 40px; font-size: 24px; z-index: 20; background: white; border: 2px solid black; cursor: pointer; }
     #info { position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.5); padding: 5px; z-index: 10; }
+    #debug { position: absolute; bottom: 10px; left: 10px; right: 10px; color: white; background: rgba(0,0,0,0.7); padding: 10px; z-index: 15; font-size: 14px; }
   </style>
 </head>
 <body>
   <button id="start-btn">▶ СТАРТ AR</button>
   <div id="info"></div>
+  <div id="debug"></div>
 
   <script type="module">
     import * as THREE from 'three';
 
     const startBtn = document.getElementById('start-btn');
     const info = document.getElementById('info');
+    const debug = document.getElementById('debug');
 
-    startBtn.addEventListener('click', () => {
+    function log(msg) {
+      debug.innerText += msg + '\n';
+      console.log(msg);
+    }
+
+    startBtn.addEventListener('click', async () => {
       startBtn.style.display = 'none';
+      debug.innerText = '';
 
-      const mindarThree = new window.MINDAR.IMAGE.MindARThree({
-        container: document.body,
-        imageTargetSrc: './targets.mind'
-      });
+      // 1. Проверка поддержки камеры
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        log('❌ Ваш браузер не поддерживает getUserMedia.');
+        startBtn.style.display = 'block';
+        return;
+      }
 
-      const { renderer, scene, camera } = mindarThree;
+      log('🟡 Запрос камеры...');
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        log('✅ Камера получена, останавливаем пробный поток.');
+        stream.getTracks().forEach(track => track.stop()); // освобождаем камеру
+      } catch (err) {
+        log('❌ Ошибка доступа к камере: ' + err.message);
+        startBtn.style.display = 'block';
+        return;
+      }
 
-      const light = new THREE.HemisphereLight(0xffffff, 0x444444);
-      scene.add(light);
-
-      const geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
-      const material = new THREE.MeshStandardMaterial({ color: 0x00ffff });
-      const cube = new THREE.Mesh(geometry, material);
-
-      const anchor = mindarThree.addAnchor(0);
-      anchor.group.add(cube);
-
-      anchor.onTargetFound = () => info.innerText = '✅ Маркер найден';
-      anchor.onTargetLost = () => info.innerText = 'Ищем маркер...';
-
-      mindarThree.start();
+      log('🟡 Запуск MindAR...');
+      try {
+        const mindarThree = new window.MINDAR.IMAGE.MindARThree({
+          container: document.body,
+          imageTargetSrc: './targets.mind'
+        });
+        const { renderer, scene, camera } = mindarThree;
+        scene.add(new THREE.HemisphereLight(0xffffff, 0x444444));
+        const cube = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), new THREE.MeshStandardMaterial({ color: 0x00ffff }));
+        const anchor = mindarThree.addAnchor(0);
+        anchor.group.add(cube);
+        anchor.onTargetFound = () => info.innerText = '✅ Маркер найден';
+        anchor.onTargetLost = () => info.innerText = 'Ищем маркер...';
+        await mindarThree.start();
+        log('✅ MindAR запущен. Ищем маркер.');
+      } catch (err) {
+        log('❌ Ошибка MindAR: ' + err.message);
+        startBtn.style.display = 'block';
+      }
     });
   </script>
 </body>
