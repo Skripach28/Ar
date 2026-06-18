@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AR Eiffel</title>
+  <!-- MindAR Image Tracking -->
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.5/dist/mindar-image.prod.js"></script>
+  <!-- Three.js для 3D -->
+  <script type="importmap">
+    { "imports": { "three": "https://unpkg.com/three@0.126.0/build/three.module.js" } }
+  </script>
+</head>
+<body style="margin:0; overflow:hidden;">
+  <div style="position:absolute; top:10px; left:10px; color:white; background:rgba(0,0,0,0.5); padding:5px; z-index:10;" id="info"></div>
+  <script type="module">
+    import * as THREE from 'three';
+
+    const mindarThree = new window.MINDAR.IMAGE.MindARThree({
+      container: document.body,
+      imageTargetSrc: './targets.mind'  // маркеры сгенерируем отдельно
+    });
+
+    const { renderer, scene, camera } = mindarThree;
+
+    // Добавим освещение
+    const light = new THREE.HemisphereLight(0xffffff, 0x444444);
+    scene.add(light);
+
+    // Модель башни (пока кубик для теста)
+    const geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+    const material = new THREE.MeshStandardMaterial({ color: 0x00ffff });
+    const cube = new THREE.Mesh(geometry, material);
+    
+    // Привязка к якорю картинки
+    const anchor = mindarThree.addAnchor(0); // индекс маркера в файле targets.mind
+    anchor.group.add(cube);
+
+    // Запуск AR
+    mindarThree.start();
+
+    // Показываем статус
+    document.getElementById('info').innerText = 'Ищем маркер...';
+    anchor.onTargetFound = () => document.getElementById('info').innerText = 'Маркер найден';
+    anchor.onTargetLost = () => document.getElementById('info').innerText = 'Маркер потерян';
+  </script>
+</body>
+</html>
