@@ -1,76 +1,100 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
   <title>AR Eiffel</title>
-  <!-- MindAR с unpkg -->
-  <script src="https://unpkg.com/mind-ar@1.2.0/dist/mindar-image.prod.js"></script>
-  <!-- Three.js с unpkg -->
-  <script src="https://unpkg.com/three@0.126.0/build/three.min.js"></script>
   <style>
-    body { margin: 0; overflow: hidden; font-family: Arial; }
-    #start-btn { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 20px 40px; font-size: 24px; z-index: 20; background: white; border: 2px solid black; cursor: pointer; }
-    #info { position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.5); padding: 5px; z-index: 10; }
-    #debug { position: absolute; bottom: 10px; left: 10px; right: 10px; color: white; background: rgba(0,0,0,0.7); padding: 10px; z-index: 15; font-size: 14px; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+    }
+    #start-btn {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 24px 48px;
+      font-size: 28px;
+      z-index: 20;
+      background: white;
+      border: 3px solid black;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    #info {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      right: 20px;
+      color: white;
+      background: rgba(0,0,0,0.6);
+      padding: 12px 16px;
+      border-radius: 6px;
+      z-index: 10;
+      font-size: 18px;
+      text-align: center;
+      pointer-events: none;
+    }
   </style>
 </head>
 <body>
   <button id="start-btn">▶ СТАРТ AR</button>
-  <div id="info"></div>
-  <div id="debug"></div>
+  <div id="info">Нажмите кнопку для запуска</div>
+
+  <!-- A-Frame + AR.js подключаем локально -->
+  <script src="./js/three.min.js"></script>
+  <script src="./js/aframe-ar.min.js"></script>
 
   <script>
-    const startBtn = document.getElementById('start-btn');
-    const info = document.getElementById('info');
-    const debug = document.getElementById('debug');
+    (function() {
+      const startBtn = document.getElementById('start-btn');
+      const info = document.getElementById('info');
 
-    function log(msg) {
-      debug.innerText += msg + '\n';
-      console.log(msg);
-    }
-
-    startBtn.addEventListener('click', async () => {
-      startBtn.style.display = 'none';
-      debug.innerText = '';
-
-      if (typeof MINDAR === 'undefined' || !MINDAR.IMAGE || !MINDAR.IMAGE.MindARThree) {
-        log('❌ MindAR не загрузился. Используем другую CDN или загружаем локально.');
+      // Проверка загрузки библиотек
+      if (typeof AFRAME === 'undefined' || typeof THREEx === 'undefined' || typeof THREEx.ArToolkitSource === 'undefined') {
+        info.innerText = '❌ Ошибка: библиотеки AR.js не загружены. Проверьте файлы в папке js.';
         startBtn.style.display = 'block';
         return;
       }
 
-      log('🟡 Запрос камеры...');
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-        log('✅ Камера получена, останавливаем пробный поток.');
-        stream.getTracks().forEach(track => track.stop());
-      } catch (err) {
-        log('❌ Ошибка доступа к камере: ' + err.message);
-        startBtn.style.display = 'block';
-        return;
-      }
+      startBtn.addEventListener('click', async function() {
+        startBtn.style.display = 'none';
 
-      log('🟡 Запуск MindAR...');
-      try {
-        const mindarThree = new MINDAR.IMAGE.MindARThree({
-          container: document.body,
-          imageTargetSrc: './targets.mind'
-        });
-        const { renderer, scene, camera } = mindarThree;
-        scene.add(new THREE.HemisphereLight(0xffffff, 0x444444));
-        const cube = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), new THREE.MeshStandardMaterial({ color: 0x00ffff }));
-        const anchor = mindarThree.addAnchor(0);
-        anchor.group.add(cube);
-        anchor.onTargetFound = () => info.innerText = '✅ Маркер найден';
-        anchor.onTargetLost = () => info.innerText = 'Ищем маркер...';
-        await mindarThree.start();
-        log('✅ MindAR запущен. Ищем маркер.');
-      } catch (err) {
-        log('❌ Ошибка MindAR: ' + err.message);
-        startBtn.style.display = 'block';
-      }
-    });
+        // Запрашиваем камеру явно (чтобы браузер показал диалог)
+        try {
+          await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+          info.innerText = '✅ Камера получена. Запускаем AR...';
+        } catch (err) {
+          info.innerText = '❌ Нет доступа к камере. Проверьте настройки браузера (замок → Камера) и обновите страницу.';
+          startBtn.style.display = 'block';
+          return;
+        }
+
+        // Создаём A-Frame сцену
+        const sceneEl = document.createElement('a-scene');
+        sceneEl.setAttribute('embedded', '');
+        sceneEl.setAttribute('arjs', 'sourceType: webcam; trackingMethod: best; debugUIEnabled: false;');
+
+        // Маркер Hiro (встроенный пресет)
+        const markerEl = document.createElement('a-marker');
+        markerEl.setAttribute('preset', 'hiro');
+
+        // Голубой кубик над маркером
+        const boxEl = document.createElement('a-box');
+        boxEl.setAttribute('position', '0 0.5 0');
+        boxEl.setAttribute('material', 'color: cyan; metalness: 0.3; roughness: 0.7;');
+        boxEl.setAttribute('scale', '0.5 0.5 0.5');
+
+        markerEl.appendChild(boxEl);
+        sceneEl.appendChild(markerEl);
+        document.body.appendChild(sceneEl);
+
+        info.innerText = '✅ AR запущен. Наведите камеру на маркер Hiro (чёрный квадрат с белой подковой).';
+      });
+    })();
   </script>
 </body>
 </html>
