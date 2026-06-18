@@ -5,46 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
   <title>AR Eiffel</title>
   <style>
-    body {
-      margin: 0;
-      overflow: hidden;
-      font-family: Arial, sans-serif;
-    }
-    #start-btn {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      padding: 24px 48px;
-      font-size: 28px;
-      z-index: 20;
-      background: white;
-      border: 3px solid black;
-      border-radius: 8px;
-      cursor: pointer;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    }
-    #info {
-      position: absolute;
-      top: 20px;
-      left: 20px;
-      right: 20px;
-      color: white;
-      background: rgba(0,0,0,0.6);
-      padding: 12px 16px;
-      border-radius: 6px;
-      z-index: 10;
-      font-size: 18px;
-      text-align: center;
-      pointer-events: none;
-    }
+    body { margin: 0; overflow: hidden; font-family: Arial; }
+    #start-btn { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 24px 48px; font-size: 28px; z-index: 20; background: white; border: 3px solid black; border-radius: 8px; cursor: pointer; }
+    #info { position: absolute; top: 20px; left: 20px; right: 20px; color: white; background: rgba(0,0,0,0.6); padding: 12px; border-radius: 6px; z-index: 10; font-size: 18px; text-align: center; }
   </style>
 </head>
 <body>
   <button id="start-btn">▶ СТАРТ AR</button>
   <div id="info">Нажмите кнопку для запуска</div>
 
-  <!-- A-Frame + AR.js подключаем локально -->
   <script src="./js/three.min.js"></script>
   <script src="./js/aframe-ar.min.js"></script>
 
@@ -53,46 +22,40 @@
       const startBtn = document.getElementById('start-btn');
       const info = document.getElementById('info');
 
-      // Проверка загрузки библиотек
-      if (typeof AFRAME === 'undefined' || typeof THREEx === 'undefined' || typeof THREEx.ArToolkitSource === 'undefined') {
-        info.innerText = '❌ Ошибка: библиотеки AR.js не загружены. Проверьте файлы в папке js.';
-        startBtn.style.display = 'block';
+      // Проверяем только A-Frame (без THREEx)
+      if (typeof AFRAME === 'undefined') {
+        info.innerText = '❌ Библиотека AR.js не загрузилась. Проверьте, что файл aframe-ar.min.js лежит в папке js и не повреждён.';
         return;
       }
 
       startBtn.addEventListener('click', async function() {
         startBtn.style.display = 'none';
-
-        // Запрашиваем камеру явно (чтобы браузер показал диалог)
         try {
           await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
           info.innerText = '✅ Камера получена. Запускаем AR...';
-        } catch (err) {
-          info.innerText = '❌ Нет доступа к камере. Проверьте настройки браузера (замок → Камера) и обновите страницу.';
+        } catch (e) {
+          info.innerText = '❌ Нет доступа к камере.';
           startBtn.style.display = 'block';
           return;
         }
 
-        // Создаём A-Frame сцену
         const sceneEl = document.createElement('a-scene');
         sceneEl.setAttribute('embedded', '');
         sceneEl.setAttribute('arjs', 'sourceType: webcam; trackingMethod: best; debugUIEnabled: false;');
 
-        // Маркер Hiro (встроенный пресет)
         const markerEl = document.createElement('a-marker');
         markerEl.setAttribute('preset', 'hiro');
 
-        // Голубой кубик над маркером
         const boxEl = document.createElement('a-box');
         boxEl.setAttribute('position', '0 0.5 0');
-        boxEl.setAttribute('material', 'color: cyan; metalness: 0.3; roughness: 0.7;');
+        boxEl.setAttribute('material', 'color: cyan;');
         boxEl.setAttribute('scale', '0.5 0.5 0.5');
 
         markerEl.appendChild(boxEl);
         sceneEl.appendChild(markerEl);
         document.body.appendChild(sceneEl);
 
-        info.innerText = '✅ AR запущен. Наведите камеру на маркер Hiro (чёрный квадрат с белой подковой).';
+        info.innerText = '✅ AR запущен. Наведите на маркер Hiro.';
       });
     })();
   </script>
